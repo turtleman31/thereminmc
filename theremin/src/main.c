@@ -9,7 +9,9 @@
 #include "buzzer.h"
 #include "filter.h"
 #include "ldr.h"
+#include "segment.h"
 #include "tick.h"
+#include "twi.h"
 #include "volume.h"
 
 #define FILTER_START_VALUE      ADC_VALUE_MAX   /* "no hand"; replaced by real samples during calibration */
@@ -25,6 +27,7 @@ static void filter_size_update(MedianFilter *filter)
     if (filter->size != requestedSize) {
         buttons_set_filter_size(filter->size);  /* out of memory: keep the buttons in sync */
     }
+    segment_show(filter->size);
 }
 
 int main(void)
@@ -38,6 +41,7 @@ int main(void)
     volume_init();
     buzzer_init();
     buttons_init();
+    twi_init();
     sei();
 
     for (;;) {
