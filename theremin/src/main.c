@@ -1,18 +1,14 @@
-#include <Arduino.h>
+/*
+ * Theremin - controller.
+ * Initialises all components and runs the non-blocking main loop.
+ */
 
-// put function declarations here:
-int myFunction(int, int);
+#include <avr/interrupt.h>
 
-void setup() {
-  // put your setup code here, to run once:
-  int result = myFunction(2, 3);
-}
+int main(void)
+{
+    sei();
 
-void loop() {
-  // put your main code here, to run repeatedly:
-}
-
-// put function definitions here:
-int myFunction(int x, int y) {
-  return x + y;
+    for (;;) {
+    }
 }
