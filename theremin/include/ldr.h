@@ -4,6 +4,8 @@
 #include <stdbool.h>
 #include <stdint.h>
 
+#include "filter.h"
+
 typedef enum {
     LDR_STATE_INIT,
     LDR_STATE_CALIBRATE,
@@ -21,7 +23,7 @@ typedef struct {
 } DistanceSensor;
 
 void ldr_init(DistanceSensor *sensor);
-bool ldr_update(DistanceSensor *sensor);
+bool ldr_update(DistanceSensor *sensor, MedianFilter *filter);
 void ldr_calculate(DistanceSensor *sensor, uint16_t level);
 uint8_t ldr_calibration_seconds_left(const DistanceSensor *sensor, uint32_t now);
 
