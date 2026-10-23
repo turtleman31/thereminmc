@@ -5,8 +5,11 @@
 
 #include <avr/interrupt.h>
 
+#include "tick.h"
+
 int main(void)
 {
+    tick_init();
     sei();
 
     for (;;) {
