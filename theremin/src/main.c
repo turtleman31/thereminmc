@@ -6,17 +6,24 @@
 #include <avr/interrupt.h>
 
 #include "buzzer.h"
+#include "ldr.h"
 #include "tick.h"
 #include "volume.h"
 
 int main(void)
 {
+    DistanceSensor sensor;
+
+    ldr_init(&sensor);
     tick_init();
     volume_init();
     buzzer_init();
     sei();
 
     for (;;) {
-        buzzer_set_volume(volume_get());
+        buzzer_set_volume(sensor.state == LDR_STATE_MEASURE ? volume_get() : VOLUME_OFF);
+        if (ldr_update(&sensor)) {
+            buzzer_set_frequency(sensor.frequencyHz);
+        }
     }
 }
