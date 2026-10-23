@@ -1,6 +1,6 @@
 /*
- * Distance sensor: calibrates the LDR for 5 seconds, then turns the reading
- * into an estimated distance and a tone frequency.
+ * Distance sensor: calibrates the LDR for 5 seconds, then turns the filtered
+ * reading into an estimated distance and a tone frequency.
  */
 
 #include "ldr.h"
@@ -9,7 +9,7 @@
 #include "tick.h"
 #include "volume.h"
 
-#define LDR_SAMPLE_INTERVAL_MS  20U
+#define LDR_SAMPLE_INTERVAL_MS  20U         /* filter window = filter size * interval */
 #define CALIBRATION_TIME_MS     5000U
 #define CALIBRATION_MIN_RANGE   50U
 #define LDR_DEFAULT_ADC_MIN     300U        /* used when the calibration fails */
@@ -82,7 +82,7 @@ uint8_t ldr_calibration_seconds_left(const DistanceSensor *sensor, uint32_t now)
 }
 
 /* Non-blocking: returns true when a new distance and frequency are available. */
-bool ldr_update(DistanceSensor *sensor)
+bool ldr_update(DistanceSensor *sensor, MedianFilter *filter)
 {
     uint32_t now = tick_ms();
 
@@ -92,6 +92,7 @@ bool ldr_update(DistanceSensor *sensor)
     sensor->lastSampleMs = now;
 
     uint16_t level = volume_ldr_level();
+    uint16_t filtered = filter_add(filter, level);
 
     if (sensor->state == LDR_STATE_INIT) {
         ldr_start_calibration(sensor, now);
@@ -99,6 +100,6 @@ bool ldr_update(DistanceSensor *sensor)
     if (sensor->state == LDR_STATE_CALIBRATE && !ldr_calibrate(sensor, level, now)) {
         return false;
     }
-    ldr_calculate(sensor, level);
+    ldr_calculate(sensor, filtered);
     return true;
 }
