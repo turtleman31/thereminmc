@@ -63,6 +63,7 @@ int main(void)
     buttons_init();
     twi_init();
     lcd_init();
+    segment_init();
     sei();
 
     for (;;) {

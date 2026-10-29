@@ -15,6 +15,7 @@ uint8_t PCICR, PCMSK2;
 
 uint32_t fakeTimeMs;
 uint16_t fakeLdrLevel;
+uint8_t fakeDeviceAddress;
 uint8_t sentAddress;
 uint8_t sentData;
 uint8_t sentLength;
@@ -27,6 +28,11 @@ uint32_t tick_ms(void)
 uint16_t volume_ldr_level(void)
 {
     return fakeLdrLevel;
+}
+
+bool twi_probe(uint8_t address)
+{
+    return address == fakeDeviceAddress;
 }
 
 void twi_send(uint8_t address, const uint8_t *data, uint8_t length)

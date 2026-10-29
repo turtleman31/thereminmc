@@ -46,6 +46,14 @@ void twi_init(void)
     TWBR = TWI_BIT_RATE;
 }
 
+bool twi_probe(uint8_t address)
+{
+    bool present = twi_start(address);
+
+    twi_stop();
+    return present;
+}
+
 void twi_send(uint8_t address, const uint8_t *data, uint8_t length)
 {
     if (twi_start(address)) {                   /* skip the data if nobody answers */
