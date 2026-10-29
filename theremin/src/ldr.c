@@ -1,9 +1,13 @@
 /*
  * Distance sensor: calibrates the LDR for 5 seconds, then turns the filtered
  * reading into an estimated distance and a tone frequency.
+ * Shadow model: a hand at height h lets h^2 / (HAND_RADIUS_CM^2 + h^2) of the
+ * room light through, and the LDR resistance follows light^-LDR_GAMMA.
  */
 
 #include "ldr.h"
+
+#include <math.h>
 
 #include "buzzer.h"
 #include "tick.h"
@@ -11,10 +15,14 @@
 
 #define LDR_SAMPLE_INTERVAL_MS  20U         /* filter window = filter size * interval */
 #define CALIBRATION_TIME_MS     5000U
-#define CALIBRATION_MIN_RANGE   50U
-#define LDR_DEFAULT_ADC_MIN     300U        /* used when the calibration fails */
-#define LDR_DEFAULT_ADC_MAX     800U
-#define DISTANCE_MAX_CM         65U
+#define CALIBRATION_MIN_RANGE   (50U * LDR_LEVEL_SCALE)
+#define LDR_DEFAULT_ADC_MIN     (300U * LDR_LEVEL_SCALE)    /* used when the calibration fails */
+#define LDR_DEFAULT_ADC_MAX     (800U * LDR_LEVEL_SCALE)
+#define DISTANCE_MAX_CM         20U         /* above this the hand's shadow misses the LDR (test finding) */
+#define LEVEL_STEPS             ((ADC_VALUE_MAX + 1.0f) * LDR_LEVEL_SCALE)
+#define LDR_GAMMA               0.7f        /* GL5537 datasheet */
+#define HAND_RADIUS_CM          6.0f        /* the hand blocks half the light at this height */
+#define NO_HAND_MARGIN          (LDR_LEVEL_SCALE / 2)       /* half an ADC step of noise */
 
 void ldr_init(DistanceSensor *sensor)
 {
@@ -24,7 +32,7 @@ void ldr_init(DistanceSensor *sensor)
 
 static void ldr_start_calibration(DistanceSensor *sensor, uint32_t now)
 {
-    sensor->adcMin = ADC_VALUE_MAX;
+    sensor->adcMin = LDR_LEVEL_MAX;
     sensor->adcMax = 0;
     sensor->calibrationStartMs = now;
     sensor->state = LDR_STATE_CALIBRATE;
@@ -53,22 +61,31 @@ static bool ldr_calibrate(DistanceSensor *sensor, uint16_t level, uint32_t now)
     return true;
 }
 
-/* adcMin = 0 cm and the highest tone, adcMax (no hand) = 65 cm and 230 Hz. */
+/* Light on the LDR relative to the no-hand light; divider 5V - LDR - ADC - 10 kOhm - GND. */
+static float ldr_light(uint16_t level, uint16_t noHandLevel)
+{
+    float resistanceRatio = ((LEVEL_STEPS - noHandLevel) * level) / (noHandLevel * (LEVEL_STEPS - level));
+
+    return powf(resistanceRatio, 1 / LDR_GAMMA);                /* R(no hand) / R, to the power 1/gamma */
+}
+
+/* adcMin = 0 cm and the highest tone, adcMax (no hand) = DISTANCE_MAX_CM and 230 Hz. */
 void ldr_calculate(DistanceSensor *sensor, uint16_t level)
 {
-    uint16_t range = sensor->adcMax - sensor->adcMin;
-    uint16_t position;
+    uint16_t noHandLevel = sensor->adcMax - NO_HAND_MARGIN;
+    float distanceCm = DISTANCE_MAX_CM;
 
     if (level <= sensor->adcMin) {
-        position = 0;
-    } else if (level >= sensor->adcMax) {
-        position = range;
-    } else {
-        position = level - sensor->adcMin;
+        distanceCm = 0;
+    } else if (level < noHandLevel) {
+        float darkest = ldr_light(sensor->adcMin, noHandLevel);
+        float passed = (ldr_light(level, noHandLevel) - darkest) / (1 - darkest);     /* the shadow model fraction */
+
+        distanceCm = fminf(HAND_RADIUS_CM * sqrtf(passed / (1 - passed)), DISTANCE_MAX_CM);
     }
-    sensor->distanceCm = (uint8_t)((uint32_t)DISTANCE_MAX_CM * position / range);
+    sensor->distanceCm = (uint8_t)lroundf(distanceCm);
     sensor->frequencyHz = FREQUENCY_MAX_HZ
-        - (uint16_t)((uint32_t)(FREQUENCY_MAX_HZ - FREQUENCY_MIN_HZ) * position / range);
+        - (uint16_t)lroundf((FREQUENCY_MAX_HZ - FREQUENCY_MIN_HZ) * distanceCm / DISTANCE_MAX_CM);
 }
 
 uint8_t ldr_calibration_seconds_left(const DistanceSensor *sensor, uint32_t now)

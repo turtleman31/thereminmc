@@ -17,7 +17,7 @@
 #include "volume.h"
 
 #define DISPLAY_INTERVAL_MS     200U
-#define FILTER_START_VALUE      ADC_VALUE_MAX   /* "no hand"; replaced by real samples during calibration */
+#define FILTER_START_VALUE      LDR_LEVEL_MAX   /* "no hand"; replaced by real samples during calibration */
 
 static void filter_size_update(MedianFilter *filter)
 {

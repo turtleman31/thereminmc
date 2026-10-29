@@ -16,8 +16,8 @@ typedef struct {
     LdrState state;
     uint32_t calibrationStartMs;
     uint32_t lastSampleMs;
-    uint16_t adcMin;        /* hand close to the sensor (dark) */
-    uint16_t adcMax;        /* no hand above the sensor (light) */
+    uint16_t adcMin;        /* hand close to the sensor (dark), in LDR levels */
+    uint16_t adcMax;        /* no hand above the sensor (light), in LDR levels */
     uint8_t distanceCm;
     uint16_t frequencyHz;
 } DistanceSensor;

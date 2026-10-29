@@ -1,6 +1,7 @@
 /*
  * Volume control: the ADC ISR alternates between the potmeter (ADC0) and the
  * LDR (ADC2) and starts the next conversion itself, so the main loop never waits.
+ * All LDR conversions are summed; averaging them gives a finer and calmer level.
  */
 
 #include "volume.h"
@@ -14,12 +15,14 @@
 #define ADC_LEFT_ADJUST_SHIFT   6           /* ADLAR = 1, so ADC >> 6 is the 10-bit result */
 
 static volatile uint8_t volumeLevel;
-static volatile uint16_t ldrLevel;
+static volatile uint32_t ldrSum;
+static volatile uint16_t ldrCount;
 
 ISR(ADC_vect)
 {
     if (ADMUX & ADC_CHANNEL_SWITCH) {
-        ldrLevel = ADC >> ADC_LEFT_ADJUST_SHIFT;
+        ldrSum += ADC >> ADC_LEFT_ADJUST_SHIFT;
+        ldrCount++;
     } else {
         volumeLevel = ADCH;
     }
@@ -42,10 +45,18 @@ uint8_t volume_get(void)
 
 uint16_t volume_ldr_level(void)
 {
-    uint16_t level;
+    static uint16_t level;
+    uint32_t sum;
+    uint16_t count;
 
     ATOMIC_BLOCK(ATOMIC_RESTORESTATE) {
-        level = ldrLevel;
+        sum = ldrSum;
+        count = ldrCount;
+        ldrSum = 0;
+        ldrCount = 0;
+    }
+    if (count > 0) {                            /* otherwise keep the previous level */
+        level = (uint16_t)((sum * LDR_LEVEL_SCALE + count / 2) / count);
     }
     return level;
 }
