@@ -1,6 +1,7 @@
 /*
  * Filter size buttons on PD4 (minus) and PD5 (plus) via pin change interrupt.
  * The ISR only stores the requested size; the main loop resizes the filter.
+ * The calibration button (SW1 on the gameshield, PC1) is polled by the main loop.
  */
 
 #include "buttons.h"
@@ -14,6 +15,7 @@
 #define BUTTON_MINUS_PIN        PD4
 #define BUTTON_PLUS_PIN         PD5
 #define BUTTON_MASK             (_BV(BUTTON_MINUS_PIN) | _BV(BUTTON_PLUS_PIN))
+#define BUTTON_CALIBRATE_PIN    PC1
 #define BUTTON_DEBOUNCE_MS      50U
 
 static volatile uint8_t requestedFilterSize = FILTER_SIZE_DEFAULT;
@@ -56,6 +58,24 @@ void buttons_init(void)
     PORTD |= BUTTON_MASK;                       /* internal pull-ups, pressed = low */
     PCMSK2 = _BV(PCINT20) | _BV(PCINT21);       /* PD4 and PD5 */
     PCICR = _BV(PCIE2);
+    DDRC &= ~_BV(BUTTON_CALIBRATE_PIN);
+    PORTC |= _BV(BUTTON_CALIBRATE_PIN);
+}
+
+/* True once per press; changes within the debounce time are ignored. */
+bool buttons_calibrate_pressed(void)
+{
+    static bool wasPressed;
+    static uint32_t lastChangeMs;
+    bool pressed = !(PINC & _BV(BUTTON_CALIBRATE_PIN));
+    uint32_t now = tick_ms();
+
+    if (pressed == wasPressed || now - lastChangeMs < BUTTON_DEBOUNCE_MS) {
+        return false;
+    }
+    wasPressed = pressed;
+    lastChangeMs = now;
+    return pressed;
 }
 
 bool buttons_filter_size_changed(uint8_t *requestedSize)

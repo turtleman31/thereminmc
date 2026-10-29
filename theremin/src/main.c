@@ -1,7 +1,7 @@
 /*
  * Theremin - controller.
  * Initialises all components and runs the non-blocking main loop:
- * volume -> filter size -> distance/pitch -> display.
+ * calibration button -> volume -> filter size -> distance/pitch -> display.
  */
 
 #include <avr/interrupt.h>
@@ -46,7 +46,7 @@ static void display_update(const DistanceSensor *sensor)
     if (sensor->state == LDR_STATE_MEASURE) {
         lcd_show_measurement(sensor->distanceCm, sensor->frequencyHz);
     } else {
-        lcd_show_calibration(sensor->state, ldr_calibration_seconds_left(sensor, now));
+        lcd_show_calibration(ldr_calibration_height_cm(sensor), ldr_calibration_seconds_left(sensor, now));
     }
 }
 
@@ -67,6 +67,9 @@ int main(void)
     sei();
 
     for (;;) {
+        if (buttons_calibrate_pressed()) {
+            ldr_recalibrate(&sensor);
+        }
         buzzer_set_volume(sensor.state == LDR_STATE_MEASURE ? volume_get() : VOLUME_OFF);
         filter_size_update(&filter);
         if (ldr_update(&sensor, &filter)) {

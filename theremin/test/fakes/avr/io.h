@@ -7,11 +7,13 @@
 
 #define _BV(bit)    (1U << (bit))
 
+extern uint8_t DDRC, PORTC, PINC;
 extern uint8_t DDRD, PORTD, PIND;
 extern uint8_t TCCR0A, TCCR0B, OCR0A, TIMSK0;
 extern uint8_t TCCR2A, TCCR2B, OCR2B;
 extern uint8_t PCICR, PCMSK2;
 
+#define PC1         1
 #define PD3         3
 #define PD4         4
 #define PD5         5

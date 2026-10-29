@@ -12,6 +12,9 @@
 #define IDLE_TIME_MS        1000U
 #define SHORT_PRESS_MS      150U
 #define LONG_PRESS_MS       3000U
+#define CALIBRATE_RELEASED  _BV(PC1)
+#define CALIBRATE_PRESSED   0
+#define BOUNCE_MS           5U
 
 void PCINT2_vect(void);
 
@@ -104,6 +107,27 @@ static void test_buttons_press_at_limit_changes_nothing(void)
     TEST_ASSERT_FALSE(buttons_filter_size_changed(&size));
 }
 
+/* Sets SW1 at timeMs and returns what the main loop sees. */
+static bool poll_calibrate_button(uint8_t pin, uint32_t timeMs)
+{
+    fakeTimeMs = timeMs;
+    PINC = pin;
+    return buttons_calibrate_pressed();
+}
+
+static void test_buttons_calibrate_press_counts_once(void)
+{
+    uint32_t pressMs = fakeTimeMs + IDLE_TIME_MS;
+
+    TEST_ASSERT_FALSE(poll_calibrate_button(CALIBRATE_RELEASED, pressMs - IDLE_TIME_MS / 2));
+    TEST_ASSERT_TRUE(poll_calibrate_button(CALIBRATE_PRESSED, pressMs));
+    TEST_ASSERT_FALSE(poll_calibrate_button(CALIBRATE_RELEASED, pressMs + BOUNCE_MS));
+    TEST_ASSERT_FALSE(poll_calibrate_button(CALIBRATE_PRESSED, pressMs + 2 * BOUNCE_MS));
+    TEST_ASSERT_FALSE(poll_calibrate_button(CALIBRATE_PRESSED, pressMs + LONG_PRESS_MS));      /* held */
+    TEST_ASSERT_FALSE(poll_calibrate_button(CALIBRATE_RELEASED, pressMs + LONG_PRESS_MS + IDLE_TIME_MS));
+    TEST_ASSERT_TRUE(poll_calibrate_button(CALIBRATE_PRESSED, pressMs + LONG_PRESS_MS + 2 * IDLE_TIME_MS));
+}
+
 void run_buttons_tests(void)
 {
     PIND = BUTTONS_RELEASED;
@@ -115,4 +139,5 @@ void run_buttons_tests(void)
     RUN_TEST(test_buttons_bouncing_press_counts_once);
     RUN_TEST(test_buttons_holding_counts_once);
     RUN_TEST(test_buttons_press_at_limit_changes_nothing);
+    RUN_TEST(test_buttons_calibrate_press_counts_once);
 }

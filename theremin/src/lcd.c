@@ -1,6 +1,6 @@
 /*
  * 2x16 LCD (HD44780 in 4-bit mode) behind a PCF8574 I2C backpack.
- * Labels are written once; after that only the numbers are overwritten.
+ * Labels are written when the screen changes; after that only the numbers are overwritten.
  */
 
 #include "lcd.h"
@@ -36,6 +36,10 @@
 #define LCD_TOP_ROW             0
 #define LCD_BOTTOM_ROW          1
 #define DECIMAL_BASE            10
+#define LCD_NOTHING_SHOWN       UINT8_MAX   /* makes the next screen write its labels */
+
+static uint8_t shownHandHeightCm = LCD_NOTHING_SHOWN;
+static bool measurementShown;
 
 static void lcd_write_nibble(uint8_t bits)
 {
@@ -106,37 +110,34 @@ void lcd_init(void)
     lcd_send(LCD_CMD_CLEAR, LCD_COMMAND);
     _delay_ms(LCD_CLEAR_DELAY_MS);
     lcd_send(LCD_CMD_ENTRY_MODE, LCD_COMMAND);
-
-    lcd_write_line(LCD_TOP_ROW, "Kalibreren...");
-    lcd_write_line(LCD_BOTTOM_ROW, "Nog:");
 }
 
-void lcd_show_calibration(LdrState step, uint8_t secondsLeft)
+void lcd_show_calibration(uint8_t handHeightCm, uint8_t secondsLeft)
 {
-    static LdrState shownStep = LDR_STATE_INIT;
-
-    if (step != shownStep) {
-        shownStep = step;
-        if (step == LDR_STATE_CALIBRATE_REFERENCE) {
-            lcd_write_line(LCD_TOP_ROW, "Hand op");
-            lcd_write_number(LCD_TOP_ROW, LDR_REFERENCE_CM, " cm");
-        } else {
+    if (handHeightCm != shownHandHeightCm) {
+        shownHandHeightCm = handHeightCm;
+        measurementShown = false;
+        if (handHeightCm == 0) {
             lcd_write_line(LCD_TOP_ROW, "Hand weg");
+        } else {
+            lcd_write_line(LCD_TOP_ROW, "Hand op");
+            lcd_write_number(LCD_TOP_ROW, handHeightCm, " cm");
         }
+        lcd_write_line(LCD_BOTTOM_ROW, "Nog:");
     }
     lcd_write_number(LCD_BOTTOM_ROW, secondsLeft, " s");
 }
 
 void lcd_show_measurement(uint8_t distanceCm, uint16_t frequencyHz)
 {
-    static bool labelsShown;
     static uint8_t shownDistanceCm;
     static uint16_t shownFrequencyHz;
 
-    if (!labelsShown) {
+    if (!measurementShown) {
         lcd_write_line(LCD_TOP_ROW, "Afstand:");
         lcd_write_line(LCD_BOTTOM_ROW, "Freq:");
-        labelsShown = true;
+        measurementShown = true;
+        shownHandHeightCm = LCD_NOTHING_SHOWN;
         shownDistanceCm = UINT8_MAX;            /* force the first update */
         shownFrequencyHz = UINT16_MAX;
     }
