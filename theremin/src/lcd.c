@@ -111,8 +111,19 @@ void lcd_init(void)
     lcd_write_line(LCD_BOTTOM_ROW, "Nog:");
 }
 
-void lcd_show_calibration(uint8_t secondsLeft)
+void lcd_show_calibration(LdrState step, uint8_t secondsLeft)
 {
+    static LdrState shownStep = LDR_STATE_INIT;
+
+    if (step != shownStep) {
+        shownStep = step;
+        if (step == LDR_STATE_CALIBRATE_REFERENCE) {
+            lcd_write_line(LCD_TOP_ROW, "Hand op");
+            lcd_write_number(LCD_TOP_ROW, LDR_REFERENCE_CM, " cm");
+        } else {
+            lcd_write_line(LCD_TOP_ROW, "Hand weg");
+        }
+    }
     lcd_write_number(LCD_BOTTOM_ROW, secondsLeft, " s");
 }
 
